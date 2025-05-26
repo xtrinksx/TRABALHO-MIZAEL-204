@@ -1,0 +1,87 @@
+import sqlite3
+
+conn = sqlite3.connect('saude.db')
+cursor = conn.cursor()
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS pacientes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    idade INTEGER NOT NULL,
+    cpf TEXT UNIQUE NOT NULL
+)
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS vacinacoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    paciente_id INTEGER,
+    vacina TEXT NOT NULL,
+    data TEXT NOT NULL,
+    FOREIGN KEY (paciente_id) REFERENCES pacientes(id)
+)
+''')
+
+def cadastrar_paciente():
+    nome = input("Nome: ")
+    idade = int(input("Idade: "))
+    cpf = input("CPF: ")
+    try:
+        cursor.execute("INSERT INTO pacientes (nome, idade, cpf) VALUES (?, ?, ?)", (nome, idade, cpf))
+        conn.commit()
+        print("Paciente cadastrado com sucesso.")
+    except sqlite3.IntegrityError:
+        print("CPF já cadastrado.")
+
+def registrar_vacinacao():
+    cpf = input("Informe o CPF do paciente: ")
+    cursor.execute("SELECT id FROM pacientes WHERE cpf = ?", (cpf,))
+    resultado = cursor.fetchone()
+    if resultado:
+        paciente_id = resultado[0]
+        vacina = input("Nome da vacina: ")
+        data = input("Data da vacinação (YYYY-MM-DD): ")
+        cursor.execute("INSERT INTO vacinacoes (paciente_id, vacina, data) VALUES (?, ?, ?)",
+                       (paciente_id, vacina, data))
+        conn.commit()
+        print("Vacinação registrada.")
+    else:
+        print("Paciente não encontrado.")
+
+def ver_historico():
+    cpf = input("Informe o CPF do paciente: ")
+    cursor.execute("SELECT id, nome FROM pacientes WHERE cpf = ?", (cpf,))
+    paciente = cursor.fetchone()
+    if paciente:
+        print(f"Histórico de {paciente[1]}:")
+        cursor.execute("SELECT vacina, data FROM vacinacoes WHERE paciente_id = ?", (paciente[0],))
+        vacinas = cursor.fetchall()
+        if vacinas:
+            for vacina, data in vacinas:
+                print(f"- {vacina} em {data}")
+        else:
+            print("Nenhuma vacinação registrada.")
+    else:
+        print("Paciente não encontrado.")
+
+def menu():
+    while True:
+        print("\n1. Cadastrar paciente")
+        print("2. Registrar vacinação")
+        print("3. Ver histórico de vacinação")
+        print("4. Sair")
+        opcao = input("Escolha uma opção: ")
+
+        if opcao == '1':
+            cadastrar_paciente()
+        elif opcao == '2':
+            registrar_vacinacao()
+        elif opcao == '3':
+            ver_historico()
+        elif opcao == '4':
+            break
+        else:
+            print("Opção inválida.")
+
+menu()
+conn.close()
